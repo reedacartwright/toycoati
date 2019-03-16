@@ -1,3 +1,10 @@
+##########################################################################################
+# This pipeline will take a fasta file in ./fasta and align its first two sequences
+# according to the toycoati model.
+#
+# Example: make aln/example-001.fasta
+#   This aligns fasta/example-001.fasta and outputs the result to aln/
+
 RSCRIPT=Rscript --vanilla
 
 default: all
@@ -50,24 +57,28 @@ fst/%.opt_fst: fst/%.min_fst fst/%.codex
 	fstencode --decode $< fst/$*.codex $@
 
 ##########################################################################################
-# 
+# Construct pairwise alignment
 
+# Extract input acceptor
 work/in_tape/%.fst: fasta/%.fasta
 	$(RSCRIPT) scripts/acceptor.R $< 1 \
 		| fstcompile --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
 		| fstarcsort --sort_type=olabel > $@
 
+# Extract output acceptor
 work/out_tape/%.fst: fasta/%.fasta
 	$(RSCRIPT) scripts/acceptor.R $< 2 \
 		| fstcompile --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
 		| fstarcsort --sort_type=ilabel > $@
 
+# Find shortest path from input to output
 work/path/%.fst: work/in_tape/%.fst work/out_tape/%.fst fst/toycoati.fst
 	 fstcompose work/in_tape/$*.fst fst/toycoati.fst \
 	 	| fstarcsort --sort_type=olabel \
 	 	| fstcompose - work/out_tape/$*.fst \
 	 	| fstshortestpath | fsttopsort > $@
 
+# Covert shortest path into an alignment
 aln/%.fasta: work/path/%.fst scripts/fasta.R
 	fstprint --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt $< \
 		| $(RSCRIPT) scripts/fasta.R - > $@

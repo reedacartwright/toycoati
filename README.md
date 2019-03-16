@@ -1,5 +1,7 @@
 ## Synopsis
 
+[![DOI](https://zenodo.org/badge/175933936.svg)](https://zenodo.org/badge/latestdoi/175933936)
+
 ToyCOATi is a demonstration workflow for using the OpenFST library to reconstruct the maximum-likelihood alignment between two sequences.
 You can review the comments in the code to see how it works in more detail.
 

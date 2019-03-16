@@ -9,6 +9,7 @@ all: fst/toycoati.fst
 .DELETE_ON_ERROR:
 
 ##########################################################################################
+# Construct fst/toycoati.fst
 
 # Construct an FST for a MG94 codon model
 fst/mutation.fst: scripts/mutation.R fst/nuc_syms.txt
@@ -48,6 +49,32 @@ fst/%.min_fst: fst/%.enc_fst
 fst/%.opt_fst: fst/%.min_fst fst/%.codex
 	fstencode --decode $< fst/$*.codex $@
 
+##########################################################################################
+# 
+
+work/in_tape/%.fst: fasta/%.fasta
+	$(RSCRIPT) scripts/acceptor.R $< 1 \
+		| fstcompile --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
+		| fstarcsort --sort_type=olabel > $@
+
+work/out_tape/%.fst: fasta/%.fasta
+	$(RSCRIPT) scripts/acceptor.R $< 2 \
+		| fstcompile --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
+		| fstarcsort --sort_type=ilabel > $@
+
+work/path/%.fst: work/in_tape/%.fst work/out_tape/%.fst fst/toycoati.fst
+	 fstcompose work/in_tape/$*.fst fst/toycoati.fst \
+	 	| fstarcsort --sort_type=olabel \
+	 	| fstcompose - work/out_tape/$*.fst \
+	 	| fstshortestpath | fsttopsort > $@
+
+aln/%.fasta: work/path/%.fst scripts/fasta.R
+	fstprint --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt $< \
+		| $(RSCRIPT) scripts/fasta.R - > $@
+
+##########################################################################################
+# MISC
+
 # create a graph of an FST
 %.dot: %.fst
 	fstdraw --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt $< > $@
@@ -55,7 +82,6 @@ fst/%.opt_fst: fst/%.min_fst fst/%.codex
 # print an FST
 %.pdf: %.dot
 	dot -Tpdf -o$@ $<
-
 
 # remove intermediate files
 clean:

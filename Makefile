@@ -60,13 +60,13 @@ fst/%.opt_fst: fst/%.min_fst fst/%.codex
 # Construct pairwise alignment
 
 # Extract input acceptor
-work/in_tape/%.fst: fasta/%.fasta
+work/in_tape/%.fst: fasta/%
 	$(RSCRIPT) scripts/acceptor.R $< 1 \
 		| fstcompile --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
 		| fstarcsort --sort_type=olabel > $@
 
 # Extract output acceptor
-work/out_tape/%.fst: fasta/%.fasta
+work/out_tape/%.fst: fasta/%
 	$(RSCRIPT) scripts/acceptor.R $< 2 \
 		| fstcompile --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
 		| fstarcsort --sort_type=ilabel > $@
@@ -79,7 +79,7 @@ work/path/%.fst: work/in_tape/%.fst work/out_tape/%.fst fst/toycoati.fst
 	 	| fstshortestpath | fsttopsort > $@
 
 # Covert shortest path into an alignment
-aln/%.fasta: work/path/%.fst scripts/fasta.R
+aln/%: work/path/%.fst scripts/fasta.R
 	fstprint --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt $< \
 		| $(RSCRIPT) scripts/fasta.R - > $@
 

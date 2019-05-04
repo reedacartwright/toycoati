@@ -43,6 +43,8 @@ codons = cbind(rep(nucs,each=16),
 codonstrs = apply(codons,1,str_c,collapse="")
 
 syn = syncodons(codonstrs)
+names(syn) = toupper(names(syn))
+syn = lapply(syn,toupper)
 
 # MG94 model - doi:10.1534/genetics.108.092254
 Q = matrix(0,64,64)
@@ -57,7 +59,7 @@ for(i in 1:64) {
         } else if(sum(codons[i,] != codons[j,]) > 1) {
             Q[i,j] = 0
         } else {
-            if(codonstrs[j] %in% toupper(syn[[ codonstrs[i] ]])) {
+            if(codonstrs[j] %in% syn[[ codonstrs[i] ]]) {
                 w = 1
             } else {
                 w = omega 

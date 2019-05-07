@@ -28,33 +28,38 @@ fst/indel.fst: scripts/indel.R fst/nuc_syms.txt
 	$(RSCRIPT) $< | fstcompile --arc_type=standard --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
 		| fstrmepsilon | fstarcsort --sort_type=ilabel > $@
 
+# Construct an FST for a geometric indel model
+fst/indel_raw.fst: scripts/indel.R fst/nuc_syms.txt
+	$(RSCRIPT) $< | fstcompile --arc_type=standard --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
+		| fstarcsort --sort_type=ilabel > $@
+
 # Compose mutations and indels together
-fst/toycoati_.fst: fst/mutation_coati.fst fst/indel_coati.fst
+fst/toycoati_temp.fst: fst/mutation_coati.fst fst/indel_coati.fst
 	fstcompose $^ > $@
 
 # Optimize the toy-COATi
-fst/toycoati.fst: fst/toycoati_.opt_fst
+fst/toycoati.fst: fst/toycoati_temp.opt.fst
 	fstrmepsilon $< $@
 
 # Optimize mutation
-fst/mutation_coati.fst: fst/mutation.opt_fst
+fst/mutation_coati.fst: fst/mutation.opt.fst
 	fstarcsort --sort_type=olabel $< $@
 
 # optimize indels
-fst/indel_coati.fst: fst/indel.opt_fst
+fst/indel_coati.fst: fst/indel.opt.fst
 	fstarcsort --sort_type=ilabel $< $@
 
 # encode an FST
-fst/%.enc_fst fst/%.codex: fst/%.fst
-	fstencode --encode_labels $< fst/$*.codex fst/$*.enc_fst
+%.enc.fst %.codex: %.fst
+	fstencode --encode_labels $< $*.codex $*.enc.fst
 
 # reduce an FST to a more efficient form
-fst/%.min_fst: fst/%.enc_fst
+%.min.fst: %.enc.fst
 	fstrmepsilon $< | fstdeterminize | fstminimize > $@
 
 # decode an FST
-fst/%.opt_fst: fst/%.min_fst fst/%.codex
-	fstencode --decode $< fst/$*.codex $@
+%.opt.fst: %.min.fst %.codex
+	fstencode --decode $< $*.codex $@
 
 ##########################################################################################
 # Construct pairwise alignment
@@ -71,12 +76,16 @@ work/out_tape/%.fst: fasta/%
 		| fstcompile --isymbols=fst/nuc_syms.txt --osymbols=fst/nuc_syms.txt - \
 		| fstarcsort --sort_type=ilabel > $@
 
-# Find shortest path from input to output
-work/path/%.fst: work/in_tape/%.fst work/out_tape/%.fst fst/toycoati.fst
-	 fstcompose work/in_tape/$*.fst fst/toycoati.fst \
-	 	| fstarcsort --sort_type=olabel \
-	 	| fstcompose - work/out_tape/$*.fst \
-	 	| fstshortestpath | fsttopsort > $@
+# Find alignment graph
+work/graph/%.fst: work/in_tape/%.fst work/out_tape/%.fst fst/toycoati.fst
+	fstcompose work/in_tape/$*.fst fst/toycoati.fst \
+		| fstarcsort --sort_type=olabel \
+		| fstcompose - work/out_tape/$*.fst \
+		> $@
+
+# Find shortest path through graph
+work/path/%.fst: work/graph/%.fst
+	fstshortestpath $< | fsttopsort > $@
 
 # Covert shortest path into an alignment
 aln/%: work/path/%.fst scripts/fasta.R
